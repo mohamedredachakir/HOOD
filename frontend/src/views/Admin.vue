@@ -1,0 +1,284 @@
+<script setup>
+import { store } from '../store';
+import { onMounted, ref, watch } from 'vue';
+import { api } from '../api';
+
+const products = ref([]);
+const orders = ref([]);
+const users = ref([]);
+const categories = ref([]);
+const editing = ref(null);
+const editCat = ref(null);
+const activeTab = ref('inventory');
+const imageFile = ref(null);
+
+const newProd = ref({ name: '', price: '', category_id: 1, description: '', stock_quantity: 50 });
+const newCat = ref({ name: '' });
+
+const fetchAll = async () => {
+    try {
+        const pRes = await api.get('/products');
+        products.value = pRes.data || pRes;
+        
+        const oRes = await api.get('/orders');
+        orders.value = oRes.data || oRes;
+        
+        users.value = await api.get('/users');
+        
+        const cRes = await api.get('/categories');
+        categories.value = Array.isArray(cRes) ? cRes : cRes.data || [];
+    } catch (e) {
+        console.error("Admin Refresh Failed", e);
+    }
+}
+
+onMounted(fetchAll);
+
+const onFileChange = (e) => { imageFile.value = e.target.files[0]; };
+
+const resetForm = () => {
+    editing.value = null;
+    imageFile.value = null;
+    newProd.value = { name: '', price: '', category_id: categories.value[0]?.id || 1, description: '', stock_quantity: 50 };
+    const fileIn = document.querySelector('.file-lux');
+    if (fileIn) fileIn.value = '';
+    store.addToast('STUDIO RESET: READY FOR NEW DROP.');
+};
+
+const save = async () => {
+    try {
+        const fd = new FormData();
+        const data = editing.value || newProd.value;
+        
+        // Ensure category_id is set
+        if (!data.category_id && categories.value.length > 0) {
+            data.category_id = categories.value[0].id;
+        }
+
+        // Send both stock and stock_quantity to be bulletproof
+        const keys = ['name', 'price', 'description', 'stock_quantity', 'category_id'];
+        keys.forEach(k => {
+            if (data[k] !== undefined && data[k] !== null) {
+                fd.append(k, data[k]);
+                if (k === 'stock_quantity') fd.append('stock', data[k]);
+            }
+        });
+        
+        if (imageFile.value) fd.append('image', imageFile.value);
+
+        if (editing.value) await api.post(`/products/${editing.value.id}?_method=PUT`, fd);
+        else await api.post('/products', fd);
+        
+        store.addToast('SUCCESS: INVENTORY UPDATED.');
+        await fetchAll();
+        editing.value = null;
+    } catch (e) { 
+        const msg = e.response?.data?.message || e.message;
+        const errors = e.response?.data?.errors;
+        if (errors) {
+            Object.values(errors).flat().forEach(err => store.addToast(err, 'error'));
+        } else {
+            store.addToast(msg, 'error');
+        }
+    }
+};
+
+const del = async (id) => {
+    if(confirm('REMOVE DROP?')) {
+        await api.delete(`/products/${id}`);
+        await fetchAll();
+        store.addToast('PRODUCT REMOVED.');
+    }
+}
+
+const saveCat = async () => {
+    try {
+        const data = editCat.value || newCat.value;
+        const cleanData = { name: data.name };
+        
+        if(editCat.value) await api.put(`/categories/${editCat.value.id}`, cleanData);
+        else await api.post('/categories', cleanData);
+        
+        await fetchAll();
+        editCat.value = null;
+        newCat.value = { name: '' };
+        store.addToast('CATEGORY ARCHIVED.');
+    } catch (e) { store.addToast(e.message, 'error'); }
+};
+
+const delCat = async (id) => {
+    if(confirm('DEL CATEGORY? ALL PRODUCTS IN IT MAY BE AFFECTED.')) {
+        await api.delete(`/categories/${id}`);
+        await fetchAll();
+    }
+};
+</script>
+
+<template>
+  <div class="pg on">
+    <div class="adm-wrap">
+      <div class="adm-side">
+         <div class="adm-logo">HOOD™ STUDIO</div>
+         <nav class="adm-nav">
+            <button class="adm-nl" :class="{on: activeTab === 'inventory'}" @click="activeTab = 'inventory'">Inventory</button>
+            <button class="adm-nl" :class="{on: activeTab === 'orders'}" @click="activeTab = 'orders'">Orders</button>
+            <button class="adm-nl" :class="{on: activeTab === 'customers'}" @click="activeTab = 'customers'">Customers</button>
+            <button class="adm-nl" :class="{on: activeTab === 'categories'}" @click="activeTab = 'categories'">Categories</button>
+            <div class="nav-sep"></div>
+            <button class="adm-nl" @click="store.view = 'home'">Exit Dashboard</button>
+         </nav>
+      </div>
+      
+      <div class="adm-main">
+         <div class="adm-stats-row">
+            <div class="stat-lux-box"><div class="stat-l">ARCHIVE DROP</div><div class="stat-v">{{ products.length }} DROPS</div></div>
+            <div class="stat-lux-box"><div class="stat-l">SHIPMENTS</div><div class="stat-v">{{ orders.length }} ACTIVE</div></div>
+            <div class="stat-lux-box mini-cat-p">
+               <div class="stat-l">STUDIO SERIES</div>
+               <div class="mini-cat-list">
+                  <span v-for="c in categories.slice(0,3)" :key="c.id" class="m-cat-tag">{{ c.name }}</span>
+                  <span v-if="categories.length > 3" class="m-cat-tag">+ {{ categories.length - 3 }}</span>
+               </div>
+            </div>
+         </div>
+
+         <div v-if="activeTab === 'inventory'">
+             <div class="adm-hdr">
+                <div><div class="label">— DROP STUDIO</div><h1 class="acc-h">COLLECTION ARCHIVE</h1></div>
+                <button class="btn-add" @click="resetForm">+ ADD NEW DROP</button>
+             </div>
+             <div class="adm-body-grid">
+                <div class="adm-list-container">
+                   <div v-for="p in products" :key="p.id" class="p-card-lux" :class="{selected: editing?.id === p.id}" @click="editing = {...p}">
+                      <div class="p-card-lux-img">
+                         <img v-if="p.image_url" :src="p.image_url">
+                      </div>
+                      <div class="p-card-lux-info"><div class="p-lux-name">{{ p.name }}</div><div class="p-lux-meta">MAD {{ p.price }} • {{ p.stock_quantity }} QTY</div></div>
+                      <button class="p-lux-del" @click.stop="del(p.id)">×</button>
+                   </div>
+                </div>
+                <div class="adm-editor-container">
+                   <div class="ed-lux-box">
+                      <div class="ed-lux-h">{{ editing ? 'REFINE DROP' : 'NEW STUDIO DROP' }}</div>
+                      <div class="fl-group"><label class="fl-lux-lbl">DESIGN NAME</label><input v-model="(editing || newProd).name" class="fi-lux" type="text"></div>
+                      <div class="fl-grid-2">
+                         <div class="fl-group"><label class="fl-lux-lbl">PRICE (MAD)</label><input v-model="(editing || newProd).price" class="fi-lux" type="number"></div>
+                         <div class="fl-group"><label class="fl-lux-lbl">STOCK QTY</label><input v-model="(editing || newProd).stock_quantity" class="fi-lux" type="number"></div>
+                      </div>
+                      <div class="fl-group">
+                         <label class="fl-lux-lbl">SELECT SERIES</label>
+                         <select v-model="(editing || newProd).category_id" class="fi-lux select-lux">
+                            <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+                         </select>
+                      </div>
+                      <div class="fl-group">
+                         <label class="fl-lux-lbl">DROP VISUAL</label><input type="file" @change="onFileChange" class="fi-lux file-lux" accept="image/*">
+                      </div>
+                      <div class="fl-group"><label class="fl-lux-lbl">MANIFESTO</label><textarea v-model="(editing || newProd).description" class="fi-lux ft-lux"></textarea></div>
+                      <button class="btn-publish" @click="save">{{ editing ? 'CONFIRM CHANGES →' : 'PUBLISH DROP →' }}</button>
+                   </div>
+                </div>
+             </div>
+         </div>
+
+         <div v-else-if="activeTab === 'orders'">
+             <div class="adm-hdr"><div><div class="label">— LOGISTICS</div><h1 class="acc-h">ACTIVE SHIPMENTS</h1></div></div>
+             <div class="order-list-lux">
+                <div v-for="o in orders" :key="o.id" class="o-lux-row">
+                   <div class="o-lux-id">#{{ o.order_id }}</div>
+                   <div class="o-lux-user">{{ o.user?.name }}</div>
+                   <div class="o-lux-items"><span v-for="i in o.items" :key="i.id" class="o-tag">{{ i.product?.name }} x{{ i.quantity }}</span></div>
+                   <div class="o-lux-total">{{ o.total_amount }} MAD</div>
+                   <div class="o-status"><span class="o-st-pill" :class="o.status">{{ o.status }}</span></div>
+                </div>
+             </div>
+         </div>
+
+         <div v-else-if="activeTab === 'customers'">
+             <div class="adm-hdr"><div><div class="label">— CRM</div><h1 class="acc-h">STREET COMMUNITY</h1></div></div>
+             <div class="usr-lux-grid">
+                <div v-for="u in users" :key="u.id" class="u-lux-card">
+                   <div class="u-lux-avatar">{{ u.name[0] }}</div>
+                   <div class="u-lux-info"><div class="u-lux-name">{{ u.name }}</div><div class="u-lux-e">{{ u.email }}</div></div>
+                   <div class="u-lux-role" :class="u.role">{{ u.role }}</div>
+                </div>
+             </div>
+         </div>
+
+         <div v-else-if="activeTab === 'categories'">
+             <div class="adm-hdr"><div><div class="label">— TAXONOMY</div><h1 class="acc-h">COLLECTION SERIES</h1></div></div>
+             <div class="adm-body-grid">
+                <div class="adm-list-container">
+                   <div v-for="c in categories" :key="c.id" class="p-card-lux" :class="{selected: editCat?.id === c.id}" @click="editCat = {...c}">
+                      <div class="p-lux-name">{{ c.name }}</div>
+                      <button class="p-lux-del" @click.stop="delCat(c.id)">×</button>
+                   </div>
+                </div>
+                <div class="adm-editor-container">
+                   <div class="ed-lux-box">
+                      <div class="ed-lux-h">{{ editCat ? 'REFINE SERIES' : 'NEW SERIES DROP' }}</div>
+                      <div class="fl-group"><label class="fl-lux-lbl">LABEL NAME</label><input v-model="(editCat || newCat).name" class="fi-lux" type="text" placeholder="e.g. STUDIO WEAR"></div>
+                      <button class="btn-publish" @click="saveCat">{{ editCat ? 'UPDATE SERIES →' : 'PUBLISH SERIES →' }}</button>
+                      <button v-if="editCat" class="btn-cancel-lux" @click="editCat = null">CANCEL</button>
+                   </div>
+                </div>
+             </div>
+         </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.adm-wrap { display: flex; min-height: 100vh; background: var(--void); color: var(--w); }
+.adm-side { width: 220px; border-right: 1px solid var(--b1); padding: 50px 30px; position: sticky; top: 0; height: 100vh; z-index: 10; }
+.adm-logo { font-family: var(--font-d); font-size: 14px; letter-spacing: .25em; margin-bottom: 72px; }
+.adm-nav { display: flex; flex-direction: column; gap: 14px; }
+.adm-nl { text-align: left; font-size: 11px; color: var(--w4); letter-spacing: .12em; transition: 0.3s; background: none; border: none; cursor: pointer;}
+.adm-nl:hover, .adm-nl.on { color: var(--w); }
+.nav-sep { height: 1px; background: var(--b1); margin: 20px 0; }
+
+.adm-main { flex: 1; padding: 50px 60px; max-width: 1400px; }
+.adm-stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 60px; }
+.stat-lux-box { background: var(--s1); border: 1px solid var(--b1); padding: 24px; }
+.stat-l { font-family: var(--font-d); font-size: 8px; color: var(--w4); letter-spacing: .25em; margin-bottom: 12px; }
+.stat-v { font-family: var(--font-d); font-size: 18px; color: var(--w); }
+
+.mini-cat-list { display: flex; gap: 8px; flex-wrap: wrap; }
+.m-cat-tag { font-size: 9px; color: var(--acc); border: 1px solid var(--acc); padding: 2px 6px; }
+
+.adm-hdr { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 56px; }
+.btn-add { background: var(--w); color: var(--void); font-family: var(--font-d); font-size: 10px; padding: 12px 24px; border: none; cursor: pointer;}
+
+.adm-body-grid { display: grid; grid-template-columns: 1fr 400px; gap: 60px; align-items: start; }
+.adm-list-container { display: flex; flex-direction: column; gap: 1px; background: var(--b1); border: 1px solid var(--b1); }
+
+.p-card-lux { background: var(--void); display: flex; align-items: center; padding: 18px 24px; gap: 24px; cursor: pointer; position: relative; transition: .2s; height: 100%; min-height: 80px;}
+.p-card-lux:hover, .p-card-lux.selected { background: var(--s1); }
+.p-card-lux-img { width: 64px; aspect-ratio: 3/4; background: var(--s2); overflow: hidden; }
+.p-card-lux-img img { width: 100%; height: 100%; object-fit: cover; }
+.p-lux-name { font-family: var(--font-d); font-size: 11px; text-transform: uppercase; margin-bottom: 4px; }
+.p-lux-meta { font-size: 10px; color: var(--w4); font-family: var(--font-d); }
+.p-lux-del { position: absolute; right: 24px; color: var(--red); font-size: 20px; opacity: 0; transition: .2s; background: none; border: none; cursor: pointer;}
+.p-card-lux:hover .p-lux-del { opacity: 1; }
+
+.ed-lux-box { background: var(--s1); padding: 40px; border: 1px solid var(--b1); position: sticky; top: 40px; }
+.ed-lux-h { font-family: var(--font-d); font-size: 14px; margin-bottom: 32px; letter-spacing: .2em; border-left: 2px solid var(--acc); padding-left: 16px; }
+.fl-group { margin-bottom: 24px; }
+.fl-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.fl-lux-lbl { display: block; font-family: var(--font-d); font-size: 9px; color: var(--w4); letter-spacing: .15em; margin-bottom: 10px; }
+.fi-lux { width: 100%; background: var(--s2); border: 1px solid var(--b2); color: var(--w); padding: 14px 16px; font-family: var(--font-b); font-size: 13px; outline: none; transition: .25s; }
+.fi-lux:focus { border-color: var(--w); background: var(--void); }
+.ft-lux { min-height: 100px; resize: vertical; line-height: 1.6; }
+.btn-publish { width: 100%; background: var(--w); color: var(--void); font-family: var(--font-d); font-size: 11px; padding: 18px; letter-spacing: .12em; margin-top: 12px; border: none; cursor: pointer;}
+.btn-publish:hover { background: var(--acc); }
+.btn-cancel-lux { width: 100%; font-size: 10px; color: var(--w3); margin-top: 16px; letter-spacing: .1em; cursor: pointer; background: none; border: none;}
+
+.order-list-lux { display: flex; flex-direction: column; gap: 1px; background: var(--b1); border: 1px solid var(--b1); }
+.o-lux-row { display: grid; grid-template-columns: 120px 200px 1fr 120px 120px; background: var(--void); padding: 24px; align-items: center; font-size: 12px; }
+.o-lux-id { font-family: var(--font-d); color: var(--acc); }
+.o-tag { display: inline-block; background: var(--s2); padding: 3px 8px; margin: 2px; border: 1px solid var(--b1); font-size: 9px; }
+.o-lux-total { font-family: var(--font-d); font-weight: 700; }
+.o-status { text-align: center; }
+.o-st-pill { font-size: 9px; font-family: var(--font-d); padding: 4px 10px; border: 1px solid var(--b2); text-transform: uppercase;}
+</style>
