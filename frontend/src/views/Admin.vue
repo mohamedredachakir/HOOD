@@ -2,6 +2,7 @@
 import { store } from '../store';
 import { onMounted, ref, watch } from 'vue';
 import { api } from '../api';
+import OrderModal from '../components/OrderModal.vue';
 
 const products = ref([]);
 const orders = ref([]);
@@ -11,6 +12,8 @@ const editing = ref(null);
 const editCat = ref(null);
 const activeTab = ref('inventory');
 const imageFile = ref(null);
+const selectedOrder = ref(null);
+const showOrderModal = ref(false);
 
 const newProd = ref({ name: '', price: '', category_id: 1, description: '', stock_quantity: 50 });
 const newCat = ref({ name: '' });
@@ -123,6 +126,22 @@ const confirmDelete = async () => {
     }
 };
 
+const openOrderModal = (order) => {
+    selectedOrder.value = order;
+    showOrderModal.value = true;
+};
+
+const closeOrderModal = () => {
+    showOrderModal.value = false;
+    selectedOrder.value = null;
+    // Refresh orders when modal closes
+    fetchAll();
+};
+
+const onOrderStatusUpdated = () => {
+    fetchAll();
+};
+
 const saveCat = async () => {
     try {
         const data = editCat.value || newCat.value;
@@ -209,8 +228,8 @@ const saveCat = async () => {
          <div v-else-if="activeTab === 'orders'">
              <div class="adm-hdr"><div><div class="label">— LOGISTICS</div><h1 class="acc-h">ACTIVE SHIPMENTS</h1></div></div>
              <div class="order-list-lux">
-                <div v-for="o in orders" :key="o.id" class="o-lux-row">
-                   <div class="o-lux-id">#{{ o.order_id }}</div>
+            <div v-for="o in orders" :key="o.id" class="o-lux-row" @click="openOrderModal(o)">
+                   <div class="o-lux-id">#{{ o.id }}</div>
                    <div class="o-lux-user">{{ o.user?.name }}</div>
                    <div class="o-lux-items"><span v-for="i in o.items" :key="i.id" class="o-tag">{{ i.product?.name }} x{{ i.quantity }}</span></div>
                    <div class="o-lux-total">{{ o.total_amount }} MAD</div>
@@ -272,6 +291,14 @@ const saveCat = async () => {
         </div>
       </div>
     </div>
+
+    <!-- ORDER MODAL -->
+    <OrderModal 
+      v-if="showOrderModal && selectedOrder"
+      :order="selectedOrder"
+      @close="closeOrderModal"
+      @status-updated="onOrderStatusUpdated"
+    />
   </div>
 </template>
 
@@ -321,7 +348,8 @@ const saveCat = async () => {
 .btn-cancel-lux { width: 100%; font-size: 10px; color: var(--w3); margin-top: 16px; letter-spacing: .1em; cursor: pointer; background: none; border: none;}
 
 .order-list-lux { display: flex; flex-direction: column; gap: 1px; background: var(--b1); border: 1px solid var(--b1); }
-.o-lux-row { display: grid; grid-template-columns: 120px 200px 1fr 120px 120px; background: var(--void); padding: 24px; align-items: center; font-size: 12px; }
+.o-lux-row { display: grid; grid-template-columns: 120px 200px 1fr 120px 120px; background: var(--void); padding: 24px; align-items: center; font-size: 12px; transition: all 0.2s ease; border-bottom: 1px solid var(--b1); }
+.o-lux-row:hover { background: var(--s1); border-color: var(--acc); }
 .o-lux-id { font-family: var(--font-d); color: var(--acc); }
 .o-tag { display: inline-block; background: var(--s2); padding: 3px 8px; margin: 2px; border: 1px solid var(--b1); font-size: 9px; }
 .o-lux-total { font-family: var(--font-d); font-weight: 700; }
