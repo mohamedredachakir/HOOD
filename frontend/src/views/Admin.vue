@@ -15,6 +15,9 @@ const imageFile = ref(null);
 const newProd = ref({ name: '', price: '', category_id: 1, description: '', stock_quantity: 50 });
 const newCat = ref({ name: '' });
 
+const confirmModal = ref(null); // { title, message, data, action }
+const showConfirm = ref(false);
+
 const fetchAll = async () => {
     try {
         const pRes = await api.get('/products');
@@ -84,12 +87,41 @@ const save = async () => {
 };
 
 const del = async (id) => {
-    if(confirm('REMOVE DROP?')) {
-        await api.delete(`/products/${id}`);
+    confirmModal.value = {
+        title: 'REMOVE DROP',
+        message: 'PERMANENTLY REMOVE THIS PRODUCT FROM YOUR ARCHIVE?',
+        data: id,
+        action: 'delete-product'
+    };
+    showConfirm.value = true;
+};
+
+const delCat = async (id) => {
+    confirmModal.value = {
+        title: 'DELETE SERIES',
+        message: 'PERMANENTLY DELETE THIS COLLECTION SERIES? ALL PRODUCTS IN IT MAY BE AFFECTED.',
+        data: id,
+        action: 'delete-category'
+    };
+    showConfirm.value = true;
+};
+
+const confirmDelete = async () => {
+    try {
+        if (confirmModal.value.action === 'delete-product') {
+            await api.delete(`/products/${confirmModal.value.data}`);
+            store.addToast('DROP ARCHIVED.');
+        } else if (confirmModal.value.action === 'delete-category') {
+            await api.delete(`/categories/${confirmModal.value.data}`);
+            store.addToast('SERIES REMOVED.');
+        }
         await fetchAll();
-        store.addToast('PRODUCT REMOVED.');
+        showConfirm.value = false;
+        confirmModal.value = null;
+    } catch (e) {
+        store.addToast(e.message, 'error');
     }
-}
+};
 
 const saveCat = async () => {
     try {
@@ -104,13 +136,6 @@ const saveCat = async () => {
         newCat.value = { name: '' };
         store.addToast('CATEGORY ARCHIVED.');
     } catch (e) { store.addToast(e.message, 'error'); }
-};
-
-const delCat = async (id) => {
-    if(confirm('DEL CATEGORY? ALL PRODUCTS IN IT MAY BE AFFECTED.')) {
-        await api.delete(`/categories/${id}`);
-        await fetchAll();
-    }
 };
 </script>
 
@@ -226,6 +251,23 @@ const delCat = async (id) => {
          </div>
       </div>
     </div>
+
+    <!-- CONFIRMATION MODAL -->
+    <div v-if="showConfirm" class="confirm-modal-overlay" @click.self="showConfirm = false">
+      <div class="confirm-modal">
+        <div class="confirm-header">
+          <h2 class="confirm-title">{{ confirmModal?.title }}</h2>
+          <button class="confirm-close" @click="showConfirm = false">✕</button>
+        </div>
+        <div class="confirm-body">
+          <p class="confirm-message">{{ confirmModal?.message }}</p>
+        </div>
+        <div class="confirm-footer">
+          <button class="confirm-cancel" @click="showConfirm = false">CANCEL</button>
+          <button class="confirm-delete" @click="confirmDelete">DELETE</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -281,4 +323,129 @@ const delCat = async (id) => {
 .o-lux-total { font-family: var(--font-d); font-weight: 700; }
 .o-status { text-align: center; }
 .o-st-pill { font-size: 9px; font-family: var(--font-d); padding: 4px 10px; border: 1px solid var(--b2); text-transform: uppercase;}
+
+/* ── CONFIRMATION MODAL ── */
+.confirm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 5, 5, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.25s ease;
+}
+
+.confirm-modal {
+  background: var(--s1);
+  border: 1px solid var(--b2);
+  max-width: 450px;
+  width: 90%;
+  animation: slideUp 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.confirm-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 24px;
+  border-bottom: 1px solid var(--b2);
+}
+
+.confirm-title {
+  font-family: var(--font-rock);
+  font-size: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.confirm-close {
+  font-size: 24px;
+  color: var(--w3);
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s;
+  background: none;
+  border: none;
+}
+
+.confirm-close:hover {
+  color: var(--w);
+}
+
+.confirm-body {
+  padding: 28px 24px;
+}
+
+.confirm-message {
+  font-family: var(--font-d);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  line-height: 1.8;
+  color: var(--w2);
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.confirm-footer {
+  display: flex;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid var(--b2);
+}
+
+.confirm-cancel {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--b2);
+  color: var(--w3);
+  font-family: var(--font-d);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  padding: 14px 20px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.15s;
+}
+
+.confirm-cancel:hover {
+  border-color: var(--w);
+  color: var(--w);
+}
+
+.confirm-delete {
+  flex: 1;
+  background: var(--red);
+  border: 1px solid var(--red);
+  color: var(--w);
+  font-family: var(--font-d);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  padding: 14px 20px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.15s;
+}
+
+.confirm-delete:hover {
+  background: var(--red2);
+  border-color: var(--red);
+  opacity: 0.9;
+}
 </style>

@@ -102,7 +102,7 @@ const update = async () => {
 <style scoped>
 .p-hero { padding: 80px 40px 40px; border-bottom: 1px solid var(--b1); }
 .p-hero-label { font-family: var(--font-d); font-size: 9px; color: var(--w4); letter-spacing: .2em; margin-bottom: 12px; }
-.p-hero-h { font-family: var(--font-d); font-size: clamp(24px, 6vw, 64px); line-height: 1; letter-spacing: -0.02em; }
+.p-hero-h { font-family: var(--font-rock); font-size: clamp(24px, 6vw, 64px); line-height: 1; letter-spacing: -0.02em; }
 .p-hero-actions { margin-top: 40px; display: flex; gap: 24px; }
 .p-hero-actions button { font-family: var(--font-d); font-size: 10px; color: var(--w4); letter-spacing: .12em; transition: .2s; }
 .p-hero-actions button:hover, .p-hero-actions button.active { color: var(--w); }
@@ -124,7 +124,7 @@ const update = async () => {
 .p-tot { font-size: 14px; }
 
 .p-form { max-width: 900px; }
-.p-sec-h { font-family: var(--font-d); font-size: 10px; color: var(--w); margin-bottom: 40px; }
+.p-sec-h { font-family: var(--font-rock); font-size: 14px; color: var(--w); margin-bottom: 40px; letter-spacing: .05em; }
 .p-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; margin-bottom: 24px; }
 .p-fi { background: transparent; border-bottom: 1px solid var(--b1); border-left: none; border-right: none; border-top: none; padding-bottom: 14px; color: var(--w); font-size: 14px; }
 .p-fi:focus { border-color: var(--w); outline: none; }
