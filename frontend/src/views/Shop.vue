@@ -17,7 +17,7 @@ const fetchDrops = async () => {
         if (search.value) url += `search=${search.value}&`;
         if (sortOrder.value !== 'default') url += `sort=${sortOrder.value}`;
         const res = await api.get(url);
-        products.value = (res.data || res);
+        products.value = Array.isArray(res) ? res : (res.data || []);
         
         // Local sorting if backend doesn't support it yet
         if (sortOrder.value === 'price-asc') products.value.sort((a,b) => a.price - b.price);

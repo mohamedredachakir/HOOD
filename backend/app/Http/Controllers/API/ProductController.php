@@ -26,8 +26,8 @@ class ProductController extends Controller
             $query->where('name', 'like', '%' . $request->search . '%');
         }
 
-        // Pagination as requested in context
-        return response()->json($query->paginate(10));
+        // Return all products (no pagination limit)
+        return response()->json($query->get());
     }
 
     /**
