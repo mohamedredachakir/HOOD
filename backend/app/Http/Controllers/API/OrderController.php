@@ -60,7 +60,7 @@ class OrderController extends Controller
                     'quantity' => $item->quantity,
                     'price' => $item->product->price
                 ]);
-                
+
                 $totalAmount += ($item->product->price * $item->quantity);
             }
 
