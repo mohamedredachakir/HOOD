@@ -112,4 +112,12 @@ class AuthController extends Controller
             'user' => $user
         ]);
     }
+
+    /**
+     * Get all users (Admin only).
+     */
+    public function users()
+    {
+        return response()->json(\App\Models\User::all());
+    }
 }
