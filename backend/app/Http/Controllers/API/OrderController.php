@@ -44,9 +44,10 @@ class OrderController extends Controller
         return DB::transaction(function () use ($user, $cart) {
             $totalAmount = 0;
 
-            // 1. Create the Order
+            // 1. Create the Order (with user's phone)
             $order = Order::create([
                 'user_id' => $user->id,
+                'phone' => $user->phone,
                 'total_amount' => 0, // Will update shortly
                 'status' => 'pending'
             ]);

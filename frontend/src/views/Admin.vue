@@ -224,7 +224,11 @@ const saveCat = async () => {
              <div class="usr-lux-grid">
                 <div v-for="u in users" :key="u.id" class="u-lux-card">
                    <div class="u-lux-avatar">{{ u.name[0] }}</div>
-                   <div class="u-lux-info"><div class="u-lux-name">{{ u.name }}</div><div class="u-lux-e">{{ u.email }}</div></div>
+                   <div class="u-lux-info">
+                      <div class="u-lux-name">{{ u.name }}</div>
+                      <div class="u-lux-e">{{ u.email }}</div>
+                      <div class="u-lux-phone">{{ u.phone || 'N/A' }}</div>
+                   </div>
                    <div class="u-lux-role" :class="u.role">{{ u.role }}</div>
                 </div>
              </div>
@@ -323,6 +327,18 @@ const saveCat = async () => {
 .o-lux-total { font-family: var(--font-d); font-weight: 700; }
 .o-status { text-align: center; }
 .o-st-pill { font-size: 9px; font-family: var(--font-d); padding: 4px 10px; border: 1px solid var(--b2); text-transform: uppercase;}
+
+/* ── USER CARD ── */
+.usr-lux-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+.u-lux-card { background: var(--void); border: 1px solid var(--b2); padding: 20px; display: flex; align-items: center; gap: 16px; transition: all 0.2s; }
+.u-lux-card:hover { background: var(--s1); border-color: var(--w3); }
+.u-lux-avatar { width: 48px; height: 48px; background: var(--acc); color: var(--void); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-d); font-size: 18px; font-weight: bold; flex-shrink: 0; }
+.u-lux-info { flex: 1; min-width: 0; }
+.u-lux-name { font-family: var(--font-d); font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+.u-lux-e { font-size: 11px; color: var(--w3); margin-bottom: 4px; word-break: break-all; }
+.u-lux-phone { font-size: 10px; color: var(--w4); font-family: var(--font-d); letter-spacing: 0.05em; }
+.u-lux-role { font-family: var(--font-d); font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; padding: 4px 10px; border: 1px solid var(--b2); }
+.u-lux-role.admin { border-color: var(--acc); color: var(--acc); }
 
 /* ── CONFIRMATION MODAL ── */
 .confirm-modal-overlay {

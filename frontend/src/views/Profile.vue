@@ -8,6 +8,7 @@ const mode = ref('orders'); // orders | settings
 const form = reactive({
     name: store.user?.name || '',
     email: store.user?.email || '',
+    phone: store.user?.phone || '',
     password: '',
     password_confirmation: ''
 });
@@ -77,6 +78,7 @@ const update = async () => {
           <div class="p-form-grid">
              <div class="fl"><label class="p-lab">FULL_NAME</label><input v-model="form.name" class="fi p-fi" type="text"></div>
              <div class="fl"><label class="p-lab">EMAIL_ADDR</label><input v-model="form.email" class="fi p-fi" type="email"></div>
+             <div class="fl"><label class="p-lab">PHONE_NUMBER</label><input v-model="form.phone" class="fi p-fi" type="tel" placeholder="+ 212 6XX XXX XXX"></div>
           </div>
           
           <div class="p-sec-h" style="margin-top:60px">— ACCESS / SECURITY</div>
@@ -125,7 +127,7 @@ const update = async () => {
 
 .p-form { max-width: 900px; }
 .p-sec-h { font-family: var(--font-rock); font-size: 14px; color: var(--w); margin-bottom: 40px; letter-spacing: .05em; }
-.p-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; margin-bottom: 24px; }
+.p-form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 48px; margin-bottom: 24px; }
 .p-fi { background: transparent; border-bottom: 1px solid var(--b1); border-left: none; border-right: none; border-top: none; padding-bottom: 14px; color: var(--w); font-size: 14px; }
 .p-fi:focus { border-color: var(--w); outline: none; }
 .p-lab { font-family: var(--font-d); font-size: 8px; letter-spacing: .25em; color: var(--w3); margin-bottom: 24px; display: block; }

@@ -6,12 +6,19 @@ const isLogin = ref(true);
 const email = ref('');
 const password = ref('');
 const name = ref('');
+const phone = ref('');
 
 const submit = async () => {
     if (isLogin.value) {
         await store.login({ email: email.value, password: password.value });
     } else {
-        await store.register({ name: name.value, email: email.value, password: password.value, password_confirmation: password.value });
+        await store.register({ 
+            name: name.value, 
+            email: email.value, 
+            phone: phone.value,
+            password: password.value, 
+            password_confirmation: password.value 
+        });
     }
 };
 </script>
@@ -20,15 +27,19 @@ const submit = async () => {
   <div class="auth-wrap">
     <div class="auth-box">
        <h1 class="auth-title">{{ isLogin ? 'LOGIN' : 'JOIN' }}</h1>
-       <p class="auth-sub">Access your HOOD account.</p>
+       <p class="auth-sub">{{ isLogin ? 'Access your HOOD account.' : 'Create your HOOD account.' }}</p>
 
        <div class="fl" v-if="!isLogin">
-          <label class="fl-lbl">Your Name</label>
-          <input class="fi" v-model="name" type="text" placeholder="Full Name">
+          <label class="fl-lbl">Full Name</label>
+          <input class="fi" v-model="name" type="text" placeholder="Your Full Name">
        </div>
        <div class="fl">
           <label class="fl-lbl">Email Address</label>
           <input class="fi" v-model="email" type="email" placeholder="your@email.com">
+       </div>
+       <div class="fl" v-if="!isLogin">
+          <label class="fl-lbl">Phone Number</label>
+          <input class="fi" v-model="phone" type="tel" placeholder="+ 212 6XX XXX XXX">
        </div>
        <div class="fl">
           <label class="fl-lbl">Password</label>
