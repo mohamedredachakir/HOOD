@@ -34,6 +34,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Admin-only actions (CRUD for Products and Categories)
     Route::middleware('admin')->group(function () {
+        Route::get('/users', [AuthController::class, 'users']);
         Route::apiResource('categories', CategoryController::class)->except(['index', 'show']);
         Route::apiResource('products', ProductController::class)->except(['index', 'show']);
     });
