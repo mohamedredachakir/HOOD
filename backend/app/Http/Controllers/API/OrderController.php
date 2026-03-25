@@ -85,10 +85,30 @@ class OrderController extends Controller
      */
     public function show(Request $request, Order $order)
     {
-        if ($order->user_id !== $request->user()->id) {
+        $user = $request->user();
+
+        // Allow admins to view any order, users can only view their own
+        if ($user->role !== 'admin' && $order->user_id !== $user->id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        return response()->json($order->load('items.product'));
+        return response()->json($order->load('items.product', 'user'));
+    }
+
+    /**
+     * Update order status (Admin only).
+     */
+    public function update(Request $request, Order $order)
+    {
+        $request->validate([
+            'status' => 'required|in:pending,confirmed,delivered,rejected'
+        ]);
+
+        $order->update(['status' => $request->status]);
+
+        return response()->json([
+            'message' => 'Order status updated successfully',
+            'order' => $order->load('items.product', 'user')
+        ]);
     }
 }
