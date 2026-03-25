@@ -118,6 +118,17 @@ export const store = reactive({
         await this.fetchCart();
     },
 
+
+    // -- ORDER ACTIONS --
+    async updateOrderStatus(orderId, status) {
+        try {
+            const res = await api.put(`/orders/${orderId}`, { status });
+            return res;
+        } catch (e) {
+            throw new Error(e.response?.data?.message || 'Failed to update order status');
+        }
+    },
+
     // -- TOASTS --
     addToast(msg, type = 'success') {
         const id = Date.now();
