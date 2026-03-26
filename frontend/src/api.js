@@ -1,7 +1,18 @@
 const API_BASE_URL = 'http://localhost:8000/api';
+const GET_CACHE_TTL_MS = 30 * 1000;
+const inflightGetRequests = new Map();
+const getResponseCache = new Map();
+
+const isCacheableCatalogEndpoint = (endpoint) => {
+    const normalized = endpoint.replace(/^\//, '');
+    return /^products(\/|\?|$)|^categories(\/|\?|$)/.test(normalized);
+};
+
+const buildGetCacheKey = (url, token) => `${url}::${token || 'guest'}`;
 
 export const api = {
     async fetch(endpoint, options = {}) {
+        const method = (options.method || 'GET').toUpperCase();
         const token = localStorage.getItem('token');
         const headers = {
             'Accept': 'application/json',
@@ -18,6 +29,22 @@ export const api = {
         }
 
         const url = `${API_BASE_URL.replace(/\/$/, '')}/${endpoint.replace(/^\//, '')}`;
+        const isCacheableGet = method === 'GET' && isCacheableCatalogEndpoint(endpoint);
+        const cacheKey = buildGetCacheKey(url, token);
+
+        if (isCacheableGet) {
+            const cached = getResponseCache.get(cacheKey);
+            if (cached && Date.now() - cached.timestamp < GET_CACHE_TTL_MS) {
+                return cached.data;
+            }
+
+            const inflight = inflightGetRequests.get(cacheKey);
+            if (inflight) {
+                return inflight;
+            }
+        }
+
+        const requestPromise = (async () => {
         const response = await fetch(url, {
             ...options,
             headers,
@@ -43,7 +70,27 @@ export const api = {
             throw err;
         }
 
+        if (isCacheableGet) {
+            getResponseCache.set(cacheKey, {
+                data,
+                timestamp: Date.now(),
+            });
+        }
+
         return data;
+        })();
+
+        if (!isCacheableGet) {
+            return requestPromise;
+        }
+
+        inflightGetRequests.set(cacheKey, requestPromise);
+
+        try {
+            return await requestPromise;
+        } finally {
+            inflightGetRequests.delete(cacheKey);
+        }
     },
 
     get(endpoint) {
