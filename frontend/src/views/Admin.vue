@@ -3,6 +3,9 @@ import { store } from '../store';
 import { onMounted, ref } from 'vue';
 import { api } from '../api';
 import OrderModal from '../components/OrderModal.vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 const products = ref([]);
 const orders = ref([]);
@@ -32,7 +35,7 @@ const handleAuthFailure = (error) => {
   if (status === 401 || status === 403) {
     store.addToast('Admin session expired or unauthorized. Please login again.', 'error');
     store.logout();
-    store.view = 'auth';
+    router.push({ name: 'auth' });
     return true;
   }
   return false;
@@ -310,7 +313,7 @@ const saveCat = async () => {
             <button class="adm-nl" :class="{on: activeTab === 'customers'}" @click="activeTab = 'customers'">Customers</button>
             <button class="adm-nl" :class="{on: activeTab === 'categories'}" @click="activeTab = 'categories'">Categories</button>
             <div class="nav-sep"></div>
-            <button class="adm-nl" @click="store.view = 'home'">Exit Dashboard</button>
+            <button class="adm-nl" @click="router.push({ name: 'home' })">Exit Dashboard</button>
          </nav>
       </div>
       
