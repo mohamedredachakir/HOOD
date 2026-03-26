@@ -26,8 +26,20 @@ export const api = {
         const data = await response.json().catch(() => ({}));
         
         if (!response.ok) {
-            const err = new Error(data.message || 'API Error');
-            err.response = { data }; // Expose errors for Admin display
+            let fallbackMessage = 'API Error';
+            if (response.status === 413) {
+                fallbackMessage = 'Upload too large. Please use a smaller image.';
+            } else if (response.status === 422) {
+                fallbackMessage = 'Validation failed. Check your form fields.';
+            } else if (response.status === 401) {
+                fallbackMessage = 'Unauthenticated.';
+            } else if (response.status === 403) {
+                fallbackMessage = 'Forbidden.';
+            }
+
+            const err = new Error(data.message || fallbackMessage);
+            err.status = response.status;
+            err.response = { data, status: response.status }; // Expose errors for Admin display
             throw err;
         }
 
