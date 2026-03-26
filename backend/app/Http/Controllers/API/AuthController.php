@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -22,13 +23,18 @@ class AuthController extends Controller
             'password' => 'required|string|min:8|confirmed',
         ]);
 
-        $user = User::create([
+        $userData = [
             'name' => $request->name,
             'email' => $request->email,
-            'phone' => $request->phone,
             'password' => Hash::make($request->password),
             'role' => 'user',
-        ]);
+        ];
+
+        if (Schema::hasColumn('users', 'phone')) {
+            $userData['phone'] = $request->phone;
+        }
+
+        $user = User::create($userData);
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -103,10 +109,14 @@ class AuthController extends Controller
             'password' => 'nullable|string|min:8|confirmed',
         ]);
 
-        $data = $request->except('password');
+        $data = $request->except(['password', 'phone']);
 
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
+        }
+
+        if (Schema::hasColumn('users', 'phone') && $request->has('phone')) {
+            $data['phone'] = $request->phone;
         }
 
         $user->update($data);
