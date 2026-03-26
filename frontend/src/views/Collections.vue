@@ -1,6 +1,7 @@
 <script setup>
 import { store } from '../store';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import voidCollectionImage from '../assests/colections/void.jpg';
 import coreCollectionImage from '../assests/colections/core.jpg';
 import statementCollectionImage from '../assests/colections/statement.jpg';
@@ -9,6 +10,7 @@ import archiveCollectionImage from '../assests/colections/archive.jpg';
 
 const collectionsScrolled = ref(false);
 const bentoRef = ref(null);
+const router = useRouter();
 
 const onPageScroll = () => {
     if (!bentoRef.value) return;
@@ -30,8 +32,7 @@ const filterBy = (name) => {
     const cat = store.categories.find(c => c.name.toLowerCase().includes(name.toLowerCase()));
     if (cat) store.activeCategory = cat.id;
     else store.activeCategory = null;
-    store.view = 'shop';
-    window.scrollTo(0,0);
+  router.push({ name: 'shop' });
 };
 </script>
 
