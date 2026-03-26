@@ -1,6 +1,6 @@
 <script setup>
 import { store } from '../store';
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, ref } from 'vue';
 import { api } from '../api';
 import OrderModal from '../components/OrderModal.vue';
 
@@ -8,12 +8,18 @@ const products = ref([]);
 const orders = ref([]);
 const users = ref([]);
 const categories = ref([]);
-const editing = ref(null);
 const editCat = ref(null);
 const activeTab = ref('inventory');
 const imageFile = ref(null);
+const imagePreview = ref('');
+const showProductModal = ref(false);
+const editingProduct = ref(null);
 const selectedOrder = ref(null);
 const showOrderModal = ref(false);
+const MAX_IMAGE_SIZE_MB = 8;
+const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+const ACCEPTED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const ACCEPTED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 
 const newProd = ref({ name: '', price: '', category_id: 1, description: '', stock_quantity: 50 });
 const newCat = ref({ name: '' });
@@ -21,45 +27,165 @@ const newCat = ref({ name: '' });
 const confirmModal = ref(null); // { title, message, data, action }
 const showConfirm = ref(false);
 
+const handleAuthFailure = (error) => {
+  const status = error?.status || error?.response?.status;
+  if (status === 401 || status === 403) {
+    store.addToast('Admin session expired or unauthorized. Please login again.', 'error');
+    store.logout();
+    store.view = 'auth';
+    return true;
+  }
+  return false;
+};
+
 const fetchAll = async () => {
-    try {
-        const pRes = await api.get('/products');
-        products.value = pRes.data || pRes;
-        
-        const oRes = await api.get('/orders');
-        orders.value = oRes.data || oRes;
-        
-        users.value = await api.get('/users');
-        
-        const cRes = await api.get('/categories');
-        categories.value = Array.isArray(cRes) ? cRes : cRes.data || [];
-    } catch (e) {
-        console.error("Admin Refresh Failed", e);
+  const [pRes, oRes, uRes, cRes] = await Promise.allSettled([
+    api.get('/products'),
+    api.get('/orders'),
+    api.get('/users'),
+    api.get('/categories')
+  ]);
+
+  if (pRes.status === 'fulfilled') {
+    const rawProducts = pRes.value.data || pRes.value;
+    products.value = Array.isArray(rawProducts) ? rawProducts : [];
+    // Validate all products have id field
+    if (products.value.length > 0 && !products.value[0].id) {
+      console.warn('WARNING: Products loaded without ID field', products.value[0]);
     }
-}
+  }
+
+  if (oRes.status === 'fulfilled') {
+    orders.value = oRes.value.data || oRes.value;
+  }
+
+  if (uRes.status === 'fulfilled') {
+    users.value = Array.isArray(uRes.value) ? uRes.value : (uRes.value.data || []);
+  }
+
+  if (cRes.status === 'fulfilled') {
+    categories.value = Array.isArray(cRes.value) ? cRes.value : (cRes.value.data || []);
+  }
+
+  const authRejected = [pRes, oRes, uRes].find(
+    (r) => r.status === 'rejected' && [401, 403].includes(r.reason?.status || r.reason?.response?.status)
+  );
+
+  if (authRejected) {
+    handleAuthFailure(authRejected.reason);
+    return;
+  }
+
+  if (pRes.status === 'rejected') store.addToast('Cannot load products.', 'error');
+  if (oRes.status === 'rejected') store.addToast('Cannot load orders.', 'error');
+  if (uRes.status === 'rejected') store.addToast('Cannot load users (admin check).', 'error');
+  if (cRes.status === 'rejected') store.addToast('Cannot load categories.', 'error');
+};
 
 onMounted(fetchAll);
 
-const onFileChange = (e) => { imageFile.value = e.target.files[0]; };
+const onFileChange = (e) => {
+  const file = e.target.files[0];
+  if (!file) {
+    imageFile.value = null;
+    imagePreview.value = '';
+    return;
+  }
+
+  if (file.size > MAX_IMAGE_SIZE_BYTES) {
+    imageFile.value = null;
+    imagePreview.value = '';
+    e.target.value = '';
+    store.addToast(`Image too large. Max ${MAX_IMAGE_SIZE_MB}MB allowed.`, 'error');
+    return;
+  }
+
+  if (!ACCEPTED_IMAGE_MIME_TYPES.includes(file.type)) {
+    imageFile.value = null;
+    imagePreview.value = '';
+    e.target.value = '';
+    store.addToast(`Unsupported image format. Use ${ACCEPTED_IMAGE_EXTENSIONS.join(', ')}.`, 'error');
+    return;
+  }
+
+  imageFile.value = file;
+  imagePreview.value = URL.createObjectURL(file);
+};
+
+const openProductModal = (product = null) => {
+  try {
+    resetForm();
+  } catch (err) {
+    showProductModal.value = true; // Open anyway
+    return;
+  }
+  
+  if (product && product.id) {
+    editingProduct.value = { ...product };
+    newProd.value = {
+      name: product.name || '',
+      price: product.price ?? '',
+      category_id: product.category_id || categories.value[0]?.id || null,
+      description: product.description || '',
+      stock_quantity: product.stock_quantity ?? product.stock ?? 0,
+    };
+    imagePreview.value = product.image_url || '';
+  } else if (product && !product.id) {
+    store.addToast('ERROR: Product missing ID. Reload page and try again.', 'error');
+    return;
+  }
+  
+  showProductModal.value = true;
+};
+
+const closeProductModal = () => {
+  showProductModal.value = false;
+  resetForm();
+};
 
 const resetForm = () => {
-    editing.value = null;
+    editingProduct.value = null;
     imageFile.value = null;
-    newProd.value = { name: '', price: '', category_id: categories.value[0]?.id || 1, description: '', stock_quantity: 50 };
+    imagePreview.value = '';
+    const defaultCategoryId = categories.value && categories.value.length > 0 ? categories.value[0].id : null;
+    newProd.value = { 
+        name: '', 
+        price: '', 
+        category_id: defaultCategoryId, 
+        description: '', 
+        stock_quantity: 50 
+    };
     const fileIn = document.querySelector('.file-lux');
     if (fileIn) fileIn.value = '';
-    store.addToast('STUDIO RESET: READY FOR NEW DROP.');
 };
 
 const save = async () => {
     try {
         const fd = new FormData();
-        const data = editing.value || newProd.value;
+    const data = newProd.value;
+
+    if (!data.name?.trim()) {
+      store.addToast('Product name is required.', 'error');
+      return;
+    }
+    if (data.price === '' || data.price === null || Number(data.price) < 0) {
+      store.addToast('Price must be a valid number.', 'error');
+      return;
+    }
+    if (data.stock_quantity === '' || data.stock_quantity === null || Number(data.stock_quantity) < 0) {
+      store.addToast('Stock quantity must be a valid number.', 'error');
+      return;
+    }
         
         // Ensure category_id is set
         if (!data.category_id && categories.value.length > 0) {
             data.category_id = categories.value[0].id;
         }
+
+    if (!data.category_id) {
+      store.addToast('Please create/select a category first.', 'error');
+      return;
+    }
 
         // Send both stock and stock_quantity to be bulletproof
         const keys = ['name', 'price', 'description', 'stock_quantity', 'category_id'];
@@ -72,24 +198,38 @@ const save = async () => {
         
         if (imageFile.value) fd.append('image', imageFile.value);
 
-        if (editing.value) await api.post(`/products/${editing.value.id}?_method=PUT`, fd);
-        else await api.post('/products', fd);
+        const editingId = Number(editingProduct.value?.id);
+        if (Number.isInteger(editingId) && editingId > 0) {
+          await api.post(`/products/${editingId}?_method=PUT`, fd);
+        } else {
+          await api.post('/products', fd);
+        }
         
         store.addToast('SUCCESS: INVENTORY UPDATED.');
         await fetchAll();
-        editing.value = null;
+        closeProductModal();
     } catch (e) { 
+      if (handleAuthFailure(e)) return;
         const msg = e.response?.data?.message || e.message;
+        const suggestion = e.response?.data?.suggestion ? ` | ${e.response.data.suggestion}` : '';
         const errors = e.response?.data?.errors;
+        
         if (errors) {
             Object.values(errors).flat().forEach(err => store.addToast(err, 'error'));
+        } else if (msg === 'Failed to fetch') {
+          store.addToast(`UPLOAD FAULT (CONNECTION ERROR). Check if backend is active and image stays under ${MAX_IMAGE_SIZE_MB}MB. If you are developing locally, check api.js URL.`, 'error');
         } else {
-            store.addToast(msg, 'error');
+            store.addToast(`${msg}${suggestion}`, 'error');
         }
     }
 };
 
 const del = async (id) => {
+  if (!id) {
+    store.addToast('Cannot delete: invalid product ID.', 'error');
+    return;
+  }
+
     confirmModal.value = {
         title: 'REMOVE DROP',
         message: 'PERMANENTLY REMOVE THIS PRODUCT FROM YOUR ARCHIVE?',
@@ -122,6 +262,7 @@ const confirmDelete = async () => {
         showConfirm.value = false;
         confirmModal.value = null;
     } catch (e) {
+      if (handleAuthFailure(e)) return;
         store.addToast(e.message, 'error');
     }
 };
@@ -189,39 +330,16 @@ const saveCat = async () => {
          <div v-if="activeTab === 'inventory'">
              <div class="adm-hdr">
                 <div><div class="label">— DROP STUDIO</div><h1 class="acc-h">COLLECTION ARCHIVE</h1></div>
-                <button class="btn-add" @click="resetForm">+ ADD NEW DROP</button>
+             <button class="btn-add" @click="openProductModal()">+ ADD NEW DROP</button>
              </div>
-             <div class="adm-body-grid">
-                <div class="adm-list-container">
-                   <div v-for="p in products" :key="p.id" class="p-card-lux" :class="{selected: editing?.id === p.id}" @click="editing = {...p}">
+           <div class="adm-list-container">
+              <div v-for="p in products" :key="p.id" class="p-card-lux" @click="openProductModal(p)">
                       <div class="p-card-lux-img">
                          <img v-if="p.image_url" :src="p.image_url">
                       </div>
                       <div class="p-card-lux-info"><div class="p-lux-name">{{ p.name }}</div><div class="p-lux-meta">MAD {{ p.price }} • {{ p.stock_quantity }} QTY</div></div>
                       <button class="p-lux-del" @click.stop="del(p.id)">×</button>
                    </div>
-                </div>
-                <div class="adm-editor-container">
-                   <div class="ed-lux-box">
-                      <div class="ed-lux-h">{{ editing ? 'REFINE DROP' : 'NEW STUDIO DROP' }}</div>
-                      <div class="fl-group"><label class="fl-lux-lbl">DESIGN NAME</label><input v-model="(editing || newProd).name" class="fi-lux" type="text"></div>
-                      <div class="fl-grid-2">
-                         <div class="fl-group"><label class="fl-lux-lbl">PRICE (MAD)</label><input v-model="(editing || newProd).price" class="fi-lux" type="number"></div>
-                         <div class="fl-group"><label class="fl-lux-lbl">STOCK QTY</label><input v-model="(editing || newProd).stock_quantity" class="fi-lux" type="number"></div>
-                      </div>
-                      <div class="fl-group">
-                         <label class="fl-lux-lbl">SELECT SERIES</label>
-                         <select v-model="(editing || newProd).category_id" class="fi-lux select-lux">
-                            <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-                         </select>
-                      </div>
-                      <div class="fl-group">
-                         <label class="fl-lux-lbl">DROP VISUAL</label><input type="file" @change="onFileChange" class="fi-lux file-lux" accept="image/*">
-                      </div>
-                      <div class="fl-group"><label class="fl-lux-lbl">MANIFESTO</label><textarea v-model="(editing || newProd).description" class="fi-lux ft-lux"></textarea></div>
-                      <button class="btn-publish" @click="save">{{ editing ? 'CONFIRM CHANGES →' : 'PUBLISH DROP →' }}</button>
-                   </div>
-                </div>
              </div>
          </div>
 
@@ -299,6 +417,43 @@ const saveCat = async () => {
       @close="closeOrderModal"
       @status-updated="onOrderStatusUpdated"
     />
+
+    <!-- PRODUCT MODAL -->
+    <div v-if="showProductModal" class="product-modal-overlay" @click.self="closeProductModal">
+      <div class="product-modal">
+        <div class="confirm-header">
+          <h2 class="confirm-title">{{ editingProduct ? 'REFINE DROP' : 'NEW STUDIO DROP' }}</h2>
+          <button class="confirm-close" @click="closeProductModal">✕</button>
+        </div>
+
+        <div class="product-modal-body">
+          <div class="fl-group"><label class="fl-lux-lbl">DESIGN NAME</label><input v-model="newProd.name" class="fi-lux" type="text"></div>
+          <div class="fl-grid-2">
+            <div class="fl-group"><label class="fl-lux-lbl">PRICE (MAD)</label><input v-model="newProd.price" class="fi-lux" type="number"></div>
+            <div class="fl-group"><label class="fl-lux-lbl">STOCK QTY</label><input v-model="newProd.stock_quantity" class="fi-lux" type="number"></div>
+          </div>
+          <div class="fl-group">
+            <label class="fl-lux-lbl">SELECT SERIES</label>
+            <select v-model="newProd.category_id" class="fi-lux select-lux">
+              <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+            </select>
+          </div>
+          <div class="fl-group">
+            <label class="fl-lux-lbl">DROP VISUAL</label>
+            <input type="file" @change="onFileChange" class="fi-lux file-lux" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp">
+            <div v-if="imagePreview" class="img-preview-wrap">
+              <img :src="imagePreview" alt="Selected preview" class="img-preview" />
+            </div>
+          </div>
+          <div class="fl-group"><label class="fl-lux-lbl">MANIFESTO</label><textarea v-model="newProd.description" class="fi-lux ft-lux"></textarea></div>
+        </div>
+
+        <div class="confirm-footer">
+          <button class="confirm-cancel" @click="closeProductModal">CANCEL</button>
+          <button class="btn-publish" style="margin-top: 0;" @click="save">{{ editingProduct ? 'CONFIRM CHANGES →' : 'PUBLISH DROP →' }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -491,5 +646,44 @@ const saveCat = async () => {
   background: var(--red2);
   border-color: var(--red);
   opacity: 0.9;
+}
+
+.product-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 5, 5, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1400;
+}
+
+.product-modal {
+  background: var(--s1);
+  border: 1px solid var(--b2);
+  width: min(640px, 92vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.product-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.img-preview-wrap {
+  margin-top: 12px;
+  border: 1px solid var(--b2);
+  background: var(--void);
+  padding: 8px;
+}
+
+.img-preview {
+  width: 100%;
+  max-height: 260px;
+  object-fit: contain;
+  display: block;
 }
 </style>
