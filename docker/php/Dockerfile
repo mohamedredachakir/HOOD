@@ -22,6 +22,14 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 # Install PHP extensions
 RUN docker-php-ext-install pdo_pgsql mbstring exif pcntl bcmath gd zip
 
+# Allow image uploads larger than PHP defaults (2M) for admin product uploads.
+RUN { \
+    echo 'upload_max_filesize=16M'; \
+    echo 'post_max_size=20M'; \
+    echo 'max_file_uploads=20'; \
+    echo 'memory_limit=256M'; \
+    } > /usr/local/etc/php/conf.d/uploads.ini
+
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
