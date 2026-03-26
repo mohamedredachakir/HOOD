@@ -28,8 +28,6 @@ const writeCache = (key, data) => {
 
 export const store = reactive({
     // State
-    view: 'home',
-    subView: null, // for inner pages or tabs
     user: JSON.parse(localStorage.getItem('user')) || null,
     token: localStorage.getItem('token') || null,
     products: [],
@@ -69,9 +67,10 @@ export const store = reactive({
             localStorage.setItem('token', this.token);
             localStorage.setItem('user', JSON.stringify(this.user));
             this.addToast('LOGIN SUCCESSFUL. WELCOME BACK.');
-            this.view = 'home';
             await this.fetchCart();
+            return true;
         } catch (e) { this.addToast(e.message, 'error'); }
+        return false;
     },
 
     async register(userData) {
@@ -82,9 +81,10 @@ export const store = reactive({
             localStorage.setItem('token', this.token);
             localStorage.setItem('user', JSON.stringify(this.user));
             this.addToast('ACCOUNT CREATED. WELCOME TO HOOD.');
-            this.view = 'home';
             await this.fetchCart();
+            return true;
         } catch (e) { this.addToast(e.message, 'error'); }
+        return false;
     },
 
     logout() {
@@ -94,7 +94,16 @@ export const store = reactive({
         localStorage.removeItem('user');
         this.cart = { items: [], total: 0 };
         this.addToast('LOGGED OUT.');
-        this.view = 'home';
+    },
+
+    async fetchProductById(productId) {
+        const localMatch = this.products.find((p) => Number(p.id) === Number(productId));
+        if (localMatch) {
+            return localMatch;
+        }
+
+        const product = await api.get(`/products/${productId}`);
+        return product?.data || product;
     },
 
     // -- PRODUCT ACTIONS --
@@ -119,7 +128,7 @@ export const store = reactive({
     async placeOrder() {
         if (this.cart.items.length === 0) return;
         try {
-            const data = await api.post('/orders', {
+            await api.post('/orders', {
                 items: this.cart.items.map(i => ({ 
                     product_id: i.product_id, 
                     quantity: i.quantity,
@@ -129,8 +138,9 @@ export const store = reactive({
             this.addToast('ORDER PLACED SUCCESSFULLY. THANK YOU.');
             this.cart.items = [];
             this.cartOpen = false;
-            this.view = 'profile'; // Redirect to see order
+            return true;
         } catch (e) { this.addToast(e.message, 'error'); }
+        return false;
     },
 
     async fetchCart() {
