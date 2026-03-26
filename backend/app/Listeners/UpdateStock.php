@@ -5,6 +5,7 @@ namespace App\Listeners;
 use App\Events\OrderPlaced;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Support\Facades\Schema;
 
 class UpdateStock implements ShouldQueue
 {
@@ -19,7 +20,11 @@ class UpdateStock implements ShouldQueue
 
         foreach ($order->items as $item) {
             $product = $item->product;
-            $product->decrement('stock', $item->quantity);
+            if (Schema::hasColumn('products', 'stock_quantity')) {
+                $product->decrement('stock_quantity', $item->quantity);
+            } elseif (Schema::hasColumn('products', 'stock')) {
+                $product->decrement('stock', $item->quantity);
+            }
         }
     }
 }
