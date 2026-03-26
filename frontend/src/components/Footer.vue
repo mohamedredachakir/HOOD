@@ -1,5 +1,7 @@
 <script setup>
-import { store } from '../store';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 </script>
 
 <template>
@@ -11,14 +13,14 @@ import { store } from '../store';
       </div>
       <div class="foot-col">
         <div class="foot-h">SHOP</div>
-        <button class="foot-lnk" @click="store.view = 'shop'">ALL HOODIES</button>
-        <button class="foot-lnk" @click="store.view = 'collections'">COLLECTIONS</button>
+        <button class="foot-lnk" @click="router.push({ name: 'shop' })">ALL HOODIES</button>
+        <button class="foot-lnk" @click="router.push({ name: 'collections' })">COLLECTIONS</button>
         <button class="foot-lnk">NEW RELEASES</button>
       </div>
       <div class="foot-col">
         <div class="foot-h">STUDIO</div>
-        <button class="foot-lnk" @click="store.view = 'about'">THE STORY</button>
-        <button class="foot-lnk" @click="store.view = 'contact'">CONTACT</button>
+        <button class="foot-lnk" @click="router.push({ name: 'about' })">THE STORY</button>
+        <button class="foot-lnk" @click="router.push({ name: 'contact' })">CONTACT</button>
         <button class="foot-lnk">SIZE GUIDE</button>
       </div>
       <div class="foot-col">
