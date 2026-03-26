@@ -1,26 +1,53 @@
 <script setup>
 import { store } from '../store';
-import { ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 const selectedSize = ref('M');
 const showSizeGuide = ref(false);
+const route = useRoute();
+const router = useRouter();
+
+const product = computed(() => store.selectedProduct);
+
+const loadProduct = async () => {
+  const productId = Number(route.params.id);
+  if (!productId) {
+    router.replace({ name: 'shop' });
+    return;
+  }
+
+  if (Number(store.selectedProduct?.id) === productId) {
+    return;
+  }
+
+  try {
+    store.selectedProduct = await store.fetchProductById(productId);
+  } catch {
+    store.addToast('PRODUCT NOT FOUND.', 'error');
+    router.replace({ name: 'shop' });
+  }
+};
+
+onMounted(loadProduct);
+watch(() => route.params.id, loadProduct);
 </script>
 
 <template>
   <div class="pg on">
-    <div v-if="store.selectedProduct" class="det-wrap">
+    <div v-if="product" class="det-wrap">
       <div class="det-gal">
          <div class="det-main">
-            <img v-if="store.selectedProduct.image_url" :src="store.selectedProduct.image_url" :alt="store.selectedProduct.name">
-            <div v-else class="pp">{{ store.selectedProduct.name.split(' ').slice(-1)[0] }}</div>
+            <img v-if="product.image_url" :src="product.image_url" :alt="product.name">
+            <div v-else class="pp">{{ product.name.split(' ').slice(-1)[0] }}</div>
          </div>
       </div>
       <div class="det-panel">
-         <div class="det-coll">{{ store.selectedProduct.category?.name || 'HOOD ORIGINALS' }}</div>
-         <h1 class="det-name">{{ store.selectedProduct.name }}</h1>
+         <div class="det-coll">{{ product.category?.name || 'HOOD ORIGINALS' }}</div>
+         <h1 class="det-name">{{ product.name }}</h1>
          <div class="det-price">
-            <span v-if="store.selectedProduct.old_price" class="det-oldprice">{{ store.selectedProduct.old_price }} MAD</span>
-            <span>{{ store.selectedProduct.price }} MAD</span>
+            <span v-if="product.old_price" class="det-oldprice">{{ product.old_price }} MAD</span>
+            <span>{{ product.price }} MAD</span>
          </div>
          <div class="det-div"></div>
          
@@ -40,10 +67,10 @@ const showSizeGuide = ref(false);
             </div>
          </div>
 
-         <button class="btn-atc" @click="store.addToCart(store.selectedProduct.id)">ADD TO CART →</button>
+        <button class="btn-atc" @click="store.addToCart(product.id)">ADD TO CART →</button>
          
          <p class="det-desc">
-            {{ store.selectedProduct.description || 'Premium streetwear hoodie. Crafted for permanence. 380gsm French Terry. Relaxed fit. Made in Morocco.' }}
+          {{ product.description || 'Premium streetwear hoodie. Crafted for permanence. 380gsm French Terry. Relaxed fit. Made in Morocco.' }}
          </p>
          
          <div style="padding:16px; background:var(--s1); border:1px solid var(--b1)">
