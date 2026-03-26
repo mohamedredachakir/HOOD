@@ -1,48 +1,56 @@
 <script setup>
 import { store } from '../store';
-import { onMounted, ref, watch } from 'vue';
-import { api } from '../api';
+import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
-const products = ref([]);
-const categories = ref([]);
+const router = useRouter();
+
 const search = ref('');
 const loading = ref(false);
 const sortOrder = ref('default');
 
-const fetchDrops = async () => {
-    loading.value = true;
-    try {
-        let url = '/products?';
-        if (store.activeCategory) url += `category_id=${store.activeCategory}&`;
-        if (search.value) url += `search=${search.value}&`;
-        if (sortOrder.value !== 'default') url += `sort=${sortOrder.value}`;
-        const res = await api.get(url);
-        products.value = Array.isArray(res) ? res : (res.data || []);
-        
-        // Local sorting if backend doesn't support it yet
-        if (sortOrder.value === 'price-asc') products.value.sort((a,b) => a.price - b.price);
-        if (sortOrder.value === 'price-desc') products.value.sort((a,b) => b.price - a.price);
-        if (sortOrder.value === 'name') products.value.sort((a,b) => a.name.localeCompare(b.name));
-        
-    } catch (e) {
-        console.error("Fetch failed", e);
-    } finally { loading.value = false; }
-};
+const categories = computed(() => store.categories || []);
 
-onMounted(async () => {
-    try {
-        const catRes = await api.get('/categories');
-        categories.value = Array.isArray(catRes) ? catRes : catRes.data || [];
-        await fetchDrops();
-    } catch (e) { console.error(e); }
+const products = computed(() => {
+  let filtered = [...(store.products || [])];
+
+  if (store.activeCategory) {
+    filtered = filtered.filter((p) => Number(p.category_id) === Number(store.activeCategory));
+  }
+
+  const query = search.value.trim().toLowerCase();
+  if (query) {
+    filtered = filtered.filter((p) => {
+      const name = (p.name || '').toLowerCase();
+      const categoryName = (p.category?.name || '').toLowerCase();
+      return name.includes(query) || categoryName.includes(query);
+    });
+  }
+
+  if (sortOrder.value === 'price-asc') filtered.sort((a, b) => Number(a.price) - Number(b.price));
+  if (sortOrder.value === 'price-desc') filtered.sort((a, b) => Number(b.price) - Number(a.price));
+  if (sortOrder.value === 'name') filtered.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+
+  return filtered;
 });
 
-watch(() => store.activeCategory, () => { fetchDrops(); });
-watch([search, sortOrder], () => { fetchDrops(); });
+onMounted(async () => {
+  if (store.products.length && store.categories.length) return;
+
+  loading.value = true;
+  try {
+    await Promise.all([
+      store.products.length ? Promise.resolve() : store.fetchProducts(),
+      store.categories.length ? Promise.resolve() : store.fetchCategories(),
+    ]);
+  } finally {
+    loading.value = false;
+  }
+});
 
 const openDetail = (p) => {
     store.selectedProduct = p;
-    store.view = 'detail';
+  router.push({ name: 'product-detail', params: { id: p.id } });
 };
 
 const getBadge = (p) => {
