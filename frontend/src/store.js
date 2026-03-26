@@ -1,6 +1,31 @@
 import { reactive } from 'vue';
 import { api } from './api';
 
+const PRODUCTS_CACHE_KEY = 'hood_products_cache_v1';
+const CATEGORIES_CACHE_KEY = 'hood_categories_cache_v1';
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+const readCache = (key) => {
+    try {
+        const raw = sessionStorage.getItem(key);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed?.timestamp || !Array.isArray(parsed?.data)) return null;
+        if (Date.now() - parsed.timestamp > CACHE_TTL_MS) return null;
+        return parsed.data;
+    } catch {
+        return null;
+    }
+};
+
+const writeCache = (key, data) => {
+    try {
+        sessionStorage.setItem(key, JSON.stringify({ timestamp: Date.now(), data }));
+    } catch {
+        // Ignore storage failures to keep runtime resilient.
+    }
+};
+
 export const store = reactive({
     // State
     view: 'home',
@@ -19,9 +44,16 @@ export const store = reactive({
     // -- INIT --
     async init() {
         try {
-            await this.fetchProducts();
-            await this.fetchCategories();
-            if (this.token) await this.fetchCart();
+            const cachedProducts = readCache(PRODUCTS_CACHE_KEY);
+            const cachedCategories = readCache(CATEGORIES_CACHE_KEY);
+
+            if (cachedProducts?.length) this.products = cachedProducts;
+            if (cachedCategories?.length) this.categories = cachedCategories;
+
+            const startupRequests = [this.fetchProducts(), this.fetchCategories()];
+            if (this.token) startupRequests.push(this.fetchCart());
+
+            await Promise.all(startupRequests);
         } catch (e) {
             console.error("Init failed", e);
             this.addToast("BACKEND OFFLINE. SOME FEATURES DISABLED.", "error");
@@ -67,13 +99,20 @@ export const store = reactive({
 
     // -- PRODUCT ACTIONS --
     async fetchProducts() {
-        const res = await api.get('/products');
-        this.products = res.data || res;
+        this.loading = true;
+        try {
+            const res = await api.get('/products');
+            this.products = res.data || res;
+            writeCache(PRODUCTS_CACHE_KEY, this.products);
+        } finally {
+            this.loading = false;
+        }
     },
 
     async fetchCategories() {
         const res = await api.get('/categories');
         this.categories = res.data || res;
+        writeCache(CATEGORIES_CACHE_KEY, this.categories);
     },
 
     // -- CART ACTIONS --
