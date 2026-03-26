@@ -1,6 +1,7 @@
 <script setup>
 import { store } from '../store';
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import heroHomeImage from '../assests/hero_home.jpg';
 import voidCollectionImage from '../assests/colections/void.jpg';
 import coreCollectionImage from '../assests/colections/core.jpg';
@@ -9,9 +10,19 @@ import washedCollectionImage from '../assests/colections/washed.jpg';
 import archiveCollectionImage from '../assests/colections/archive.jpg';
 
 const heroImageUrl = heroHomeImage;
+const router = useRouter();
 const collectionsScrolled = ref(false);
 const bentoRef = ref(null);
 let scrollRafId = 0;
+let idlePreloadId = null;
+
+const prewarmImages = (urls) => {
+  urls.filter(Boolean).forEach((url) => {
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = url;
+  });
+};
 
 const measureCollectionsState = () => {
   if (!bentoRef.value) return;
@@ -32,6 +43,23 @@ const onPageScroll = () => {
 onMounted(() => {
   measureCollectionsState();
   window.addEventListener('scroll', onPageScroll, { passive: true });
+
+  const preloadTask = () => {
+    prewarmImages([
+      voidCollectionImage,
+      coreCollectionImage,
+      statementCollectionImage,
+      washedCollectionImage,
+      archiveCollectionImage,
+      ...store.products.slice(0, 8).map((p) => p.image_url),
+    ]);
+  };
+
+  if ('requestIdleCallback' in window) {
+    idlePreloadId = window.requestIdleCallback(preloadTask, { timeout: 1500 });
+  } else {
+    idlePreloadId = window.setTimeout(preloadTask, 500);
+  }
 });
 
 onBeforeUnmount(() => {
@@ -40,15 +68,31 @@ onBeforeUnmount(() => {
     window.cancelAnimationFrame(scrollRafId);
     scrollRafId = 0;
   }
+
+  if (idlePreloadId !== null) {
+    if ('cancelIdleCallback' in window) {
+      window.cancelIdleCallback(idlePreloadId);
+    } else {
+      window.clearTimeout(idlePreloadId);
+    }
+    idlePreloadId = null;
+  }
 });
 
 const filterBy = (name) => {
     const cat = store.categories.find(c => c.name.toLowerCase().includes(name.toLowerCase()));
     if (cat) store.activeCategory = cat.id;
     else store.activeCategory = null;
-    store.view = 'shop';
-    window.scrollTo(0,0);
+    router.push({ name: 'shop' });
 };
+
+const openDetail = (product) => {
+  store.selectedProduct = product;
+  router.push({ name: 'product-detail', params: { id: product.id } });
+};
+
+const featuredProducts = computed(() => store.products.slice(0, 6));
+const featuredLoopProducts = computed(() => [...featuredProducts.value, ...featuredProducts.value]);
 </script>
 
 <template>
@@ -68,8 +112,8 @@ const filterBy = (name) => {
         </div>
         <div class="hero-actions">
           <p class="hero-scroll">↓ Scroll</p>
-          <button class="btn-cta" @click="store.view = 'shop'">SHOP ALL →</button>
-          <button class="btn-out" @click="store.view = 'collections'">COLLECTIONS</button>
+          <button class="btn-cta" @click="router.push({ name: 'shop' })">SHOP ALL →</button>
+          <button class="btn-out" @click="router.push({ name: 'collections' })">COLLECTIONS</button>
         </div>
       </div>
     </section>
@@ -97,11 +141,12 @@ const filterBy = (name) => {
           <div class="sec-label">Latest Drop</div>
           <div class="sec-title">VOID SERIES 002</div>
         </div>
-        <button class="lnk-all" @click="store.view = 'shop'">VIEW ALL →</button>
+        <button class="lnk-all" @click="router.push({ name: 'shop' })">VIEW ALL →</button>
       </div>
 
-      <div class="pg-grid pg-grid-4">
-        <div v-for="p in store.products.slice(0, 4)" :key="p.id" class="pc" @click="store.selectedProduct = p; store.view = 'detail'">
+      <div class="feat-slider">
+        <div class="feat-track" :class="{ paused: featuredProducts.length <= 1 }">
+          <div v-for="(p, index) in featuredLoopProducts" :key="`${p.id}-${index}`" class="pc feat-card" @click="openDetail(p)">
           <div class="pc-img">
             <div class="pc-img-inner">
                  <img v-if="p.image_url" :src="p.image_url" :alt="p.name" loading="lazy" decoding="async">
@@ -112,7 +157,7 @@ const filterBy = (name) => {
             
             <div class="pc-overlay">
                 <div style="width:100%; text-align:center; font-family:var(--font-d); font-size:10px; letter-spacing:.1em; color:var(--w); margin-bottom:10px;">VIEW DROP //</div>
-                <button v-for="size in ['S', 'M', 'L', 'XL']" :key="size" class="sq" @click.stop="store.selectedProduct = p; store.view = 'detail'">
+                <button v-for="size in ['S', 'M', 'L', 'XL']" :key="size" class="sq" @click.stop="openDetail(p)">
                     {{ size }}
                 </button>
             </div>
@@ -126,13 +171,14 @@ const filterBy = (name) => {
           </div>
         </div>
       </div>
+      </div>
     </section>
 
     <!-- COLLECTIONS BENTO -->
     <section class="sec-sm" style="padding-top:0">
       <div class="sec-hdr">
           <div class="sec-label" style="font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--w)">Collections</div>
-          <button class="lnk-all" @click="store.view = 'collections'">ALL →</button>
+          <button class="lnk-all" @click="router.push({ name: 'collections' })">ALL →</button>
       </div>
         <div ref="bentoRef" class="bento" :class="{ 'is-scrolled': collectionsScrolled }">
         <div class="bc tall" @click="filterBy('VOID')">
