@@ -180,6 +180,37 @@ select {
 .pg-grid-3 { grid-template-columns: repeat(3, 1fr); }
 .pg-grid-auto { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 
+/* ── FEATURED SLIDER ── */
+.feat-slider {
+  overflow: hidden;
+  border-top: 1px solid var(--b1);
+  border-bottom: 1px solid var(--b1);
+}
+
+.feat-track {
+  display: flex;
+  gap: 1px;
+  width: max-content;
+  background: var(--b1);
+  animation: featuredTicker 32s linear infinite;
+  will-change: transform;
+}
+
+.feat-slider:hover .feat-track,
+.feat-track.paused {
+  animation-play-state: paused;
+}
+
+.feat-card {
+  width: min(360px, calc((100vw - 80px) / 4));
+  flex: 0 0 min(360px, calc((100vw - 80px) / 4));
+}
+
+@keyframes featuredTicker {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(-50% - 0.5px)); }
+}
+
 /* ── PRODUCT CARD ── */
 .pc {
   background: var(--void);
@@ -399,6 +430,11 @@ select {
 
   .hero-h1 {
     font-size: clamp(36px, 13vw, 62px);
+  }
+
+  .feat-card {
+    width: min(320px, calc((100vw - 48px) / 2));
+    flex: 0 0 min(320px, calc((100vw - 48px) / 2));
   }
 }
 
