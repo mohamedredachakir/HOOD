@@ -2,6 +2,9 @@
 import { store } from '../store';
 import { onMounted, ref, reactive } from 'vue';
 import { api } from '../api';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 const orders = ref([]);
 const mode = ref('orders'); // orders | settings
@@ -30,6 +33,11 @@ const update = async () => {
         form.password_confirmation = '';
     } catch (e) { store.addToast(e.message, 'error'); }
 };
+
+const logout = () => {
+   store.logout();
+   router.push({ name: 'home' });
+};
 </script>
 
 <template>
@@ -41,7 +49,7 @@ const update = async () => {
        <div class="p-hero-actions">
           <button @click="mode = 'orders'" :class="{active: mode === 'orders'}">ORDERS</button>
           <button @click="mode = 'settings'" :class="{active: mode === 'settings'}">SETTINGS</button>
-          <button @click="store.logout" class="p-logout">EXIT ACCOUNT</button>
+          <button @click="logout" class="p-logout">EXIT ACCOUNT</button>
        </div>
     </div>
 
@@ -50,7 +58,7 @@ const update = async () => {
        <div v-if="orders.length === 0" class="p-null">
           NO ORDERS FOUND IN ARCHIVE.
           <br><br>
-          <button class="lnk-all" @click="store.view = 'shop'">GO TO SHOP →</button>
+          <button class="lnk-all" @click="router.push({ name: 'shop' })">GO TO SHOP →</button>
        </div>
        <div v-else class="p-list">
           <div v-for="o in orders" :key="o.id" class="p-row">
