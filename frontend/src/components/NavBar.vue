@@ -1,20 +1,30 @@
 <script setup>
 import { store } from '../store';
+import { useRoute, useRouter } from 'vue-router';
+
+const route = useRoute();
+const router = useRouter();
+
+const goToAccount = () => {
+  router.push({ name: store.user ? 'profile' : 'auth' });
+};
+
+const isActive = (routeName) => route.name === routeName;
 </script>
 
 <template>
   <nav class="nav">
-    <div class="nav-logo" @click="store.view = 'home'">HOOD™</div>
+    <div class="nav-logo" @click="router.push({ name: 'home' })">HOOD™</div>
     <div class="nav-links">
-      <button class="nav-lnk" :class="{on: store.view === 'home'}" @click="store.view = 'home'">Home</button>
-      <button class="nav-lnk" :class="{on: store.view === 'shop'}" @click="store.view = 'shop'">Shop</button>
-      <button class="nav-lnk" :class="{on: store.view === 'collections'}" @click="store.view = 'collections'">Collections</button>
-      <button v-if="store.user?.role === 'admin'" class="nav-lnk" :class="{on: store.view === 'admin'}" @click="store.view = 'admin'">Admin</button>
-      <button class="nav-lnk" :class="{on: store.view === 'about'}" @click="store.view = 'about'">About</button>
-      <button class="nav-lnk" @click="store.view = 'contact'">Contact</button>
+      <button class="nav-lnk" :class="{on: isActive('home')}" @click="router.push({ name: 'home' })">Home</button>
+      <button class="nav-lnk" :class="{on: isActive('shop')}" @click="router.push({ name: 'shop' })">Shop</button>
+      <button class="nav-lnk" :class="{on: isActive('collections')}" @click="router.push({ name: 'collections' })">Collections</button>
+      <button v-if="store.user?.role === 'admin'" class="nav-lnk" :class="{on: isActive('admin')}" @click="router.push({ name: 'admin' })">Admin</button>
+      <button class="nav-lnk" :class="{on: isActive('about')}" @click="router.push({ name: 'about' })">About</button>
+      <button class="nav-lnk" :class="{on: isActive('contact')}" @click="router.push({ name: 'contact' })">Contact</button>
     </div>
     <div class="nav-r">
-      <button class="nav-usr" @click="store.user ? store.view = 'profile' : store.view = 'auth'">
+      <button class="nav-usr" @click="goToAccount">
         {{ store.user ? store.user.name.toUpperCase() : 'LOGIN' }}
       </button>
       <button class="cart-trig" @click="store.cartOpen = true">
