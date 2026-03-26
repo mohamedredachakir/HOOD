@@ -123,6 +123,19 @@ select {
 /* ── SECTION ── */
 .sec { padding: 72px 40px; }
 .sec-sm { padding: 40px 40px; }
+
+/* Defer heavy offscreen section rendering to improve scroll smoothness. */
+.sec,
+.sec-sm,
+.mani {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 900px;
+}
+
+.hero {
+  content-visibility: visible;
+}
+
 .sec-hdr {
   display: flex;
   justify-content: space-between;
