@@ -1,6 +1,10 @@
 <script setup>
 import { store } from '../store';
 import { ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+
+const router = useRouter();
+const route = useRoute();
 
 const isLogin = ref(true);
 const email = ref('');
@@ -9,10 +13,11 @@ const name = ref('');
 const phone = ref('');
 
 const submit = async () => {
+   let ok = false;
     if (isLogin.value) {
-        await store.login({ email: email.value, password: password.value });
+      ok = await store.login({ email: email.value, password: password.value });
     } else {
-        await store.register({ 
+      ok = await store.register({ 
             name: name.value, 
             email: email.value, 
             phone: phone.value,
@@ -20,6 +25,11 @@ const submit = async () => {
             password_confirmation: password.value 
         });
     }
+
+   if (ok) {
+     const redirectPath = typeof route.query.redirect === 'string' ? route.query.redirect : '/';
+     router.push(redirectPath);
+   }
 };
 </script>
 
