@@ -11,8 +11,9 @@ import archiveCollectionImage from '../assests/colections/archive.jpg';
 const heroImageUrl = heroHomeImage;
 const collectionsScrolled = ref(false);
 const bentoRef = ref(null);
+let scrollRafId = 0;
 
-const onPageScroll = () => {
+const measureCollectionsState = () => {
   if (!bentoRef.value) return;
   const rect = bentoRef.value.getBoundingClientRect();
   // Keep centered titles visible longer, then collapse when section is deeply scrolled.
@@ -20,13 +21,25 @@ const onPageScroll = () => {
   collectionsScrolled.value = rect.top <= -holdCenterUntil;
 };
 
+const onPageScroll = () => {
+  if (scrollRafId) return;
+  scrollRafId = window.requestAnimationFrame(() => {
+    measureCollectionsState();
+    scrollRafId = 0;
+  });
+};
+
 onMounted(() => {
-  onPageScroll();
+  measureCollectionsState();
   window.addEventListener('scroll', onPageScroll, { passive: true });
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', onPageScroll);
+  if (scrollRafId) {
+    window.cancelAnimationFrame(scrollRafId);
+    scrollRafId = 0;
+  }
 });
 
 const filterBy = (name) => {
@@ -91,7 +104,7 @@ const filterBy = (name) => {
         <div v-for="p in store.products.slice(0, 4)" :key="p.id" class="pc" @click="store.selectedProduct = p; store.view = 'detail'">
           <div class="pc-img">
             <div class="pc-img-inner">
-                 <img v-if="p.image_url" :src="p.image_url" :alt="p.name">
+                 <img v-if="p.image_url" :src="p.image_url" :alt="p.name" loading="lazy" decoding="async">
                  <div v-else class="pp">{{ p.name.split(' ').slice(-1)[0] }}</div>
             </div>
             <div v-if="p.stock <= 0" class="pc-badge bs">SOLD OUT</div>
@@ -123,31 +136,31 @@ const filterBy = (name) => {
       </div>
         <div ref="bentoRef" class="bento" :class="{ 'is-scrolled': collectionsScrolled }">
         <div class="bc tall" @click="filterBy('VOID')">
-          <div class="bc-bg"><img :src="voidCollectionImage" style="width:100%; height:100%; object-fit:cover;"></div>
+          <div class="bc-bg"><img :src="voidCollectionImage" loading="lazy" decoding="async" style="width:100%; height:100%; object-fit:cover;"></div>
           <div class="bc-name-center">VOID SERIES</div>
             <div class="bc-grad"></div>
             <div class="bc-info"><div class="bc-tag">Seasonal Drop — 2026</div><div class="bc-name">VOID SERIES</div><button class="bc-cta">EXPLORE →</button></div>
         </div>
         <div class="bc tall" @click="filterBy('CORE')">
-          <div class="bc-bg"><img :src="coreCollectionImage" style="width:100%; height:100%; object-fit:cover;"></div>
+          <div class="bc-bg"><img :src="coreCollectionImage" loading="lazy" decoding="async" style="width:100%; height:100%; object-fit:cover;"></div>
           <div class="bc-name-center">CORE COLLECTION</div>
             <div class="bc-grad"></div>
             <div class="bc-info"><div class="bc-tag">Permanent Collection</div><div class="bc-name">CORE COLLECTION</div><button class="bc-cta">EXPLORE →</button></div>
         </div>
         <div class="bc tall" @click="filterBy('STATEMENT')">
-          <div class="bc-bg"><img :src="statementCollectionImage" style="width:100%; height:100%; object-fit:cover;"></div>
+          <div class="bc-bg"><img :src="statementCollectionImage" loading="lazy" decoding="async" style="width:100%; height:100%; object-fit:cover;"></div>
           <div class="bc-name-center">STATEMENT SERIES</div>
             <div class="bc-grad"></div>
             <div class="bc-info"><div class="bc-tag">Graphic Series</div><div class="bc-name">STATEMENT SERIES</div><button class="bc-cta">EXPLORE →</button></div>
         </div>
         <div class="bc tall" @click="filterBy('WASHED')">
-          <div class="bc-bg"><img :src="washedCollectionImage" style="width:100%; height:100%; object-fit:cover;"></div>
+          <div class="bc-bg"><img :src="washedCollectionImage" loading="lazy" decoding="async" style="width:100%; height:100%; object-fit:cover;"></div>
           <div class="bc-name-center">WASHED EDITION</div>
             <div class="bc-grad"></div>
             <div class="bc-info"><div class="bc-tag">Washed Finishes</div><div class="bc-name">WASHED EDITION</div><button class="bc-cta">EXPLORE →</button></div>
         </div>
         <div class="bc wide" @click="filterBy('ARCHIVE')">
-          <div class="bc-bg"><img :src="archiveCollectionImage" style="width:100%; height:100%; object-fit:cover;"></div>
+          <div class="bc-bg"><img :src="archiveCollectionImage" loading="lazy" decoding="async" style="width:100%; height:100%; object-fit:cover;"></div>
           <div class="bc-name-center">ARCHIVE REEDITION</div>
             <div class="bc-grad"></div>
             <div class="bc-info" style="display:flex; justify-content:space-between; align-items:flex-end">
