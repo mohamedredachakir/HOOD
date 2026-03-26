@@ -3,21 +3,27 @@ import { store } from './store';
 import AnnBar from './components/AnnBar.vue';
 import NavBar from './components/NavBar.vue';
 import Footer from './components/Footer.vue';
-import Home from './views/Home.vue';
-import Shop from './views/Shop.vue';
-import ProductDetail from './views/ProductDetail.vue';
-import Auth from './views/Auth.vue';
-import Collections from './views/Collections.vue';
-import About from './views/About.vue';
-import Contact from './views/Contact.vue';
-import Profile from './views/Profile.vue';
-import Admin from './views/Admin.vue';
 import { onMounted } from 'vue';
+import { RouterView, useRouter } from 'vue-router';
+
+const router = useRouter();
 
 // Initial load
 onMounted(async () => {
     await store.init();
 });
+
+const goToShop = () => {
+    store.cartOpen = false;
+    router.push({ name: 'shop' });
+};
+
+const checkout = async () => {
+    const placed = await store.placeOrder();
+    if (placed) {
+        router.push({ name: 'profile' });
+    }
+};
 </script>
 
 <template>
@@ -26,15 +32,7 @@ onMounted(async () => {
     <NavBar />
 
     <main class="main-content">
-      <Home v-if="store.view === 'home'" />
-      <Shop v-else-if="store.view === 'shop'" />
-      <Collections v-else-if="store.view === 'collections'" />
-      <About v-else-if="store.view === 'about'" />
-      <ProductDetail v-else-if="store.view === 'detail'" />
-      <Auth v-else-if="store.view === 'auth'" />
-      <Profile v-else-if="store.view === 'profile' && store.user" />
-      <Contact v-else-if="store.view === 'contact'" />
-      <Admin v-else-if="store.view === 'admin' && store.user?.role === 'admin'" />
+            <RouterView />
     </main>
 
     <Footer />
@@ -55,7 +53,7 @@ onMounted(async () => {
         <div class="cd-body">
             <div v-if="store.cart.items.length === 0" class="cd-empty">
                 <div class="cd-empty-txt">YOUR CART IS EMPTY.<br>START WITH ONE HOODIE.</div>
-                <button class="btn-cta" style="margin-top:12px; font-size:9px;" @click="store.view = 'shop'; store.cartOpen = false">SHOP NOW →</button>
+                <button class="btn-cta" style="margin-top:12px; font-size:9px;" @click="goToShop">SHOP NOW →</button>
             </div>
             
             <div v-for="item in store.cart.items" :key="item.id" class="ci">
@@ -78,7 +76,7 @@ onMounted(async () => {
         
         <div v-if="store.cart.items.length > 0" class="cd-foot">
             <div class="cd-tot"><span>TOTAL</span><span class="cd-tot-v">{{ store.cart.total }} MAD</span></div>
-            <button class="btn-co" @click="store.placeOrder">CHECKOUT →</button>
+            <button class="btn-co" @click="checkout">CHECKOUT →</button>
         </div>
      </div>
   </div>
